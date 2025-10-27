@@ -1,0 +1,182 @@
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(request: NextRequest) {
+  let naturalLanguageQuery: string | undefined;
+  let maxLimit = 100;
+  
+  try {
+    const body = await request.json();
+    naturalLanguageQuery = body.naturalLanguageQuery;
+    const limit = body.limit || 100;
+
+    // Validate input
+    if (!naturalLanguageQuery || typeof naturalLanguageQuery !== 'string') {
+      return NextResponse.json(
+        {
+          error: "Natural language query is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate limit
+    maxLimit = Math.min(parseInt(limit) || 100, 1000);
+    if (maxLimit < 1) {
+      return NextResponse.json(
+        {
+          error: "Limit must be a positive number",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check for Groq API key
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) {
+      return NextResponse.json(
+        {
+          error: "Groq API key not configured. Please add GROQ_API_KEY to your environment variables.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // Database schema information for the LLM
+    const schemaInfo = `
+Database Schema:
+PAYMENTS_FDW TABLE COLUMNS: id, transaction_id, status, amount, refund_amount, created_at, updated_at, user_id, event_id, event_attendee_id, payment_gateway_id, card_type, last_four, name_on_card, metadata, host_processing_fees, host_squadup_fees, guest_processing_fees, guest_squadup_fees, added_to_attending, added_fees_paid, promotion_amount, event_tracking_link_id, paypal_email, payment_instrument, actual_processing_fees, processing_fee_id, box_office, shipping_fees, shipping_address_id, tax_paid, social_share_discount, locale_id, batch_payment, transfer_payment_trace_id, shopping_cart_session_id, insurance_premium, exchange, notes, phone_number, box_office_user_id, payment_plan_purchase_id, payment_plan_in_progress, check_wire_paid_at, conf_email_last_delivered_at, payment_plan_fee
+
+EVENTS_FDW TABLE COLUMNS: id, user_id (this is the host), privacy, address, lat_lng, start_at, end_at, rsvp_by, hide_guest_list, accept_donations
+
+USERS_FDW TABLE COLUMNS: id, email, first_name, last_name, location, zip_code, city, state, street
+
+Common patterns:
+- Payments with events: LEFT JOIN events_fdw e ON p.event_id = e.id
+- Payments with users: LEFT JOIN users_fdw u ON p.user_id = u.id
+- User full name: CONCAT(u.first_name, ' ', u.last_name) AS full_name
+- Date filtering: WHERE p.created_at >= CURRENT_DATE - INTERVAL '30 days'
+- Amount calculations: (p.amount - p.refund_amount) AS net_amount
+
+CRITICAL RULES:
+- ONLY use column names that exist in the above lists
+- There is NO "net_amount" column - calculate it as (amount - refund_amount)
+- users table has first_name and last_name, NOT name
+- events table has user_id (host), NOT name or description
+- Do NOT automatically add payment_gateway_id IS NOT NULL unless specifically requested
+- For "all payments", include ALL payments, not just those with gateway IDs
+- Always prefix columns with table alias when using JOINs
+`;
+
+    const prompt = `You are a SQL expert. Convert the following natural language query to a PostgreSQL SELECT statement.
+
+${schemaInfo}
+
+Rules:
+1. Only generate SELECT statements (no INSERT, UPDATE, DELETE, etc.)
+2. Use proper PostgreSQL syntax
+3. MUST include "LIMIT ${maxLimit}" at the end of the query
+4. Use table aliases when joining (p for payments_fdw, e for events_fdw, u for users_fdw)
+5. For date comparisons, use DATE() function or ::date casting
+6. Return ONLY the SQL query, no explanations or markdown
+
+Natural language query: "${naturalLanguageQuery}"
+Result limit: ${maxLimit} rows
+
+SQL:`;
+
+    // Call Groq API
+    console.log('Calling Groq API for query:', naturalLanguageQuery);
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant', // Fast and available model
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.1, // Low temperature for consistent SQL generation
+        max_tokens: 500,
+        stop: [';'] // Stop at semicolon to avoid multiple statements
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Groq API error details:', response.status, response.statusText, errorText);
+      throw new Error(`Groq API error: ${response.status} ${response.statusText}. Details: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('Groq API response received:', data);
+    
+    let sql = data.choices?.[0]?.message?.content?.trim();
+
+    if (!sql) {
+      console.error('No SQL generated by the model. Full response:', data);
+      throw new Error('No SQL generated by the model');
+    }
+
+    // Clean up the SQL
+    sql = sql.replace(/```sql/g, '').replace(/```/g, '').trim();
+    
+    // Add semicolon if not present
+    if (!sql.endsWith(';')) {
+      sql += ';';
+    }
+
+    // Basic validation - ensure it's a SELECT statement
+    if (!sql.toLowerCase().startsWith('select')) {
+      throw new Error('Generated query is not a SELECT statement');
+    }
+
+    return NextResponse.json({
+      sql,
+      originalQuery: naturalLanguageQuery,
+      model: 'llama-3.1-8b-instant'
+    });
+
+  } catch (error) {
+    console.error("Natural language to SQL conversion error:", error);
+
+    // If Groq API fails, try to provide a helpful fallback
+    const query = (naturalLanguageQuery || '').toLowerCase();
+    let fallbackSQL = '';
+    
+    if (query.includes('recent') || query.includes('latest')) {
+      fallbackSQL = `SELECT * FROM payments_fdw WHERE payment_gateway_id IS NOT NULL ORDER BY created_at DESC LIMIT ${maxLimit};`;
+    } else if (query.includes('failed') || query.includes('error')) {
+      fallbackSQL = `SELECT * FROM payments_fdw WHERE status = 'failed' OR status = 'error' ORDER BY created_at DESC LIMIT ${maxLimit};`;
+    } else if (query.includes('successful') || query.includes('success')) {
+      fallbackSQL = `SELECT * FROM payments_fdw WHERE status = 'success' ORDER BY created_at DESC LIMIT ${maxLimit};`;
+    } else if (query.includes('payments')) {
+      fallbackSQL = `SELECT * FROM payments_fdw ORDER BY created_at DESC LIMIT ${maxLimit};`;
+    } else {
+      return NextResponse.json(
+        {
+          error: "Failed to convert natural language to SQL. Please check your Groq API key configuration.",
+          details:
+            process.env.NODE_ENV === "development"
+              ? error instanceof Error
+                ? error.message
+                : "Unknown error"
+              : "Groq API not configured or failed. Try using the SQL tab directly.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // Return the fallback SQL with a warning
+    return NextResponse.json({
+      sql: fallbackSQL,
+      originalQuery: naturalLanguageQuery,
+      model: 'fallback-template',
+      warning: 'Used fallback template due to AI service unavailability. For full natural language support, please configure your Groq API key.'
+    });
+  }
+}
