@@ -6,15 +6,8 @@ import {
   Download,
   Loader2,
   Search,
-  Calendar as CalendarIcon,
 } from "lucide-react";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 interface SeatLookupResult {
   eventName: string;
@@ -32,8 +25,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<SeatLookupResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [eventDate, setEventDate] = useState<Date | undefined>(undefined);
   const [showPastTransactions, setShowPastTransactions] = useState(false);
+  const [showFutureTransactions, setShowFutureTransactions] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -80,29 +73,30 @@ export default function Home() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let filteredResults = results;
-
-    // Filter by selected event date
-    if (eventDate) {
-      const selectedDateStr = format(eventDate, "MM/dd/yyyy");
-      filteredResults = filteredResults.filter(
-        (r) => r.eventStartDate === selectedDateStr
+    const filteredResults = results.filter((r) => {
+      const eventDateParts = r.eventStartDate.split("/");
+      const eventDateObj = new Date(
+        parseInt(eventDateParts[2]),
+        parseInt(eventDateParts[0]) - 1,
+        parseInt(eventDateParts[1])
       );
-    }
+      eventDateObj.setHours(0, 0, 0, 0);
 
-    // Filter past transactions
-    if (!showPastTransactions) {
-      filteredResults = filteredResults.filter((r) => {
-        const eventDateParts = r.eventStartDate.split("/");
-        const eventDateObj = new Date(
-          parseInt(eventDateParts[2]),
-          parseInt(eventDateParts[0]) - 1,
-          parseInt(eventDateParts[1])
-        );
-        eventDateObj.setHours(0, 0, 0, 0);
-        return eventDateObj >= today;
-      });
-    }
+      const isToday = eventDateObj.getTime() === today.getTime();
+      const isPast = eventDateObj < today;
+      const isFuture = eventDateObj > today;
+
+      // Always include today
+      if (isToday) return true;
+
+      // Include past if checkbox is checked
+      if (isPast && showPastTransactions) return true;
+
+      // Include future if checkbox is checked
+      if (isFuture && showFutureTransactions) return true;
+
+      return false;
+    });
 
     const headers = [
       "Event Name",
@@ -194,91 +188,71 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-2">
-                  Filter by Event Date (Optional)
+            <div className="flex gap-6">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="showPastTransactions"
+                  checked={showPastTransactions}
+                  onChange={(e) => setShowPastTransactions(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <label
+                  htmlFor="showPastTransactions"
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Show past transactions
                 </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className={`w-full p-3 border rounded-md text-left flex items-center gap-2 ${
-                        !eventDate ? "text-gray-500" : ""
-                      }`}
-                      disabled={isLoading}
-                    >
-                      <CalendarIcon size={20} />
-                      {eventDate ? format(eventDate, "PPP") : "Select a date"}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={eventDate}
-                      onSelect={setEventDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
               </div>
 
-              {eventDate && (
-                <button
-                  onClick={() => setEventDate(undefined)}
-                  className="px-4 py-3 border rounded-md hover:bg-gray-50 transition-colors"
-                  disabled={isLoading}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="showFutureTransactions"
+                  checked={showFutureTransactions}
+                  onChange={(e) => setShowFutureTransactions(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <label
+                  htmlFor="showFutureTransactions"
+                  className="text-sm font-medium cursor-pointer"
                 >
-                  Clear Date
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="showPastTransactions"
-                checked={showPastTransactions}
-                onChange={(e) => setShowPastTransactions(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300"
-              />
-              <label
-                htmlFor="showPastTransactions"
-                className="text-sm font-medium cursor-pointer"
-              >
-                Show past transactions
-              </label>
+                  Show future transactions
+                </label>
+              </div>
             </div>
           </div>
         </div>
 
         {results.length > 0 && (() => {
-          // Filter results based on date and past transactions settings
+          // Filter results: always show today, optionally show past/future based on checkboxes
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
-          let filteredResults = results;
-
-          // Filter by selected event date
-          if (eventDate) {
-            const selectedDateStr = format(eventDate, "MM/dd/yyyy");
-            filteredResults = filteredResults.filter(
-              (r) => r.eventStartDate === selectedDateStr
+          const filteredResults = results.filter((r) => {
+            const eventDateParts = r.eventStartDate.split("/");
+            const eventDateObj = new Date(
+              parseInt(eventDateParts[2]),
+              parseInt(eventDateParts[0]) - 1,
+              parseInt(eventDateParts[1])
             );
-          }
+            eventDateObj.setHours(0, 0, 0, 0);
 
-          // Filter past transactions
-          if (!showPastTransactions) {
-            filteredResults = filteredResults.filter((r) => {
-              const eventDateParts = r.eventStartDate.split("/");
-              const eventDateObj = new Date(
-                parseInt(eventDateParts[2]),
-                parseInt(eventDateParts[0]) - 1,
-                parseInt(eventDateParts[1])
-              );
-              eventDateObj.setHours(0, 0, 0, 0);
-              return eventDateObj >= today;
-            });
-          }
+            const isToday = eventDateObj.getTime() === today.getTime();
+            const isPast = eventDateObj < today;
+            const isFuture = eventDateObj > today;
+
+            // Always show today
+            if (isToday) return true;
+
+            // Show past if checkbox is checked
+            if (isPast && showPastTransactions) return true;
+
+            // Show future if checkbox is checked
+            if (isFuture && showFutureTransactions) return true;
+
+            return false;
+          });
 
           return (
             <div className="bg-white border rounded-lg p-6 shadow-sm">
