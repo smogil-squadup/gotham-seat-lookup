@@ -210,7 +210,7 @@ export const searchPaymentsByNameOrEmail = async (params: {
       ea.last_name,
       json_agg(
         json_build_object(
-          'seat_obj', (ag.metadata->'seat_obj'),
+          'seat_obj', ag.seat_obj,
           'seat_id', ag.seat_id
         ) ORDER BY ag.id
       ) FILTER (WHERE ag.id IS NOT NULL) as seats
@@ -287,6 +287,11 @@ export const searchPaymentsByNameOrEmail = async (params: {
       if (row.seats && Array.isArray(row.seats) && row.seats.length > 0) {
         const allSeats = row.seats
           .map((seat) => {
+            // Debug: Log seat structure to understand data format
+            if (seat.seat_obj) {
+              console.log('DEBUG seat_obj:', JSON.stringify(seat.seat_obj));
+            }
+
             // Check if seat_obj has components
             if (seat.seat_obj?.components && Array.isArray(seat.seat_obj.components) && seat.seat_obj.components.length > 0) {
               const components = seat.seat_obj.components
