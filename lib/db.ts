@@ -222,6 +222,7 @@ export const searchPaymentsByNameOrEmail = async (params: {
       AND (
         LOWER(ea.first_name) LIKE LOWER($2)
         OR LOWER(ea.last_name) LIKE LOWER($2)
+        OR LOWER(CONCAT(ea.first_name, ' ', ea.last_name)) LIKE LOWER($2)
       )
     GROUP BY p.id, p.amount, p.created_at, p.event_id, e.start_at, e.name, ea.first_name, ea.last_name
     ORDER BY p.created_at DESC
