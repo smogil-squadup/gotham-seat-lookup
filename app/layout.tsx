@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Staging Warehouse Demo",
-  description: "Built by smogs",
+  title: "Gotham Seat Lookup",
+  description: "Built by SquadUP",
 };
 
 export default function RootLayout({
