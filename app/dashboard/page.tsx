@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { Download, Loader2, Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 
 interface SeatLookupResult {
   eventName: string;
@@ -61,68 +61,6 @@ export default function Home() {
     }
   };
 
-  const exportToCSV = () => {
-    // Apply same filters as display
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const filteredResults = results.filter((r) => {
-      const eventDateParts = r.eventStartDate.split("/");
-      const eventDateObj = new Date(
-        parseInt(eventDateParts[2]),
-        parseInt(eventDateParts[0]) - 1,
-        parseInt(eventDateParts[1])
-      );
-      eventDateObj.setHours(0, 0, 0, 0);
-
-      const isToday = eventDateObj.getTime() === today.getTime();
-      const isPast = eventDateObj < today;
-      const isFuture = eventDateObj > today;
-
-      // Always include today
-      if (isToday) return true;
-
-      // Include past if checkbox is checked
-      if (isPast && showPastTransactions) return true;
-
-      // Include future if checkbox is checked
-      if (isFuture && showFutureTransactions) return true;
-
-      return false;
-    });
-
-    const headers = [
-      "Event Name",
-      "Event Date",
-      "Event Time",
-      "Payment ID",
-      "Payer Name",
-      "Seat",
-    ];
-
-    const rows = filteredResults.map((r) => [
-      r.eventName,
-      r.eventStartDate,
-      r.eventStartTime,
-      r.paymentId,
-      r.payerName || "",
-      r.seatInfo || "",
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `seat-lookup-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    toast.success("CSV exported successfully");
-  };
 
   return (
     <main className="min-h-screen p-8 max-w-6xl mx-auto">
@@ -297,16 +235,10 @@ export default function Home() {
 
             return (
               <div className="bg-white border rounded-lg p-4 sm:p-6 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+                <div className="mb-4">
                   <h2 className="text-xl font-semibold">
                     Results ({filteredResults.length})
                   </h2>
-                  <button
-                    onClick={exportToCSV}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                    <Download size={20} />
-                    Export CSV
-                  </button>
                 </div>
 
                 {filteredResults.length === 0 ? (
