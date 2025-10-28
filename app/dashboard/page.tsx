@@ -188,39 +188,66 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex gap-6">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="showPastTransactions"
-                  checked={showPastTransactions}
-                  onChange={(e) => setShowPastTransactions(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-                <label
-                  htmlFor="showPastTransactions"
-                  className="text-sm font-medium cursor-pointer"
-                >
-                  Show past transactions
-                </label>
-              </div>
+            {results.length > 0 && (() => {
+              // Calculate counts for checkboxes
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="showFutureTransactions"
-                  checked={showFutureTransactions}
-                  onChange={(e) => setShowFutureTransactions(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300"
-                />
-                <label
-                  htmlFor="showFutureTransactions"
-                  className="text-sm font-medium cursor-pointer"
-                >
-                  Show future transactions
-                </label>
-              </div>
-            </div>
+              let pastCount = 0;
+              let futureCount = 0;
+
+              results.forEach((r) => {
+                const eventDateParts = r.eventStartDate.split("/");
+                const eventDateObj = new Date(
+                  parseInt(eventDateParts[2]),
+                  parseInt(eventDateParts[0]) - 1,
+                  parseInt(eventDateParts[1])
+                );
+                eventDateObj.setHours(0, 0, 0, 0);
+
+                if (eventDateObj < today) {
+                  pastCount++;
+                } else if (eventDateObj > today) {
+                  futureCount++;
+                }
+              });
+
+              return (
+                <div className="flex gap-6">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showPastTransactions"
+                      checked={showPastTransactions}
+                      onChange={(e) => setShowPastTransactions(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                    <label
+                      htmlFor="showPastTransactions"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Show past transactions ({pastCount})
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="showFutureTransactions"
+                      checked={showFutureTransactions}
+                      onChange={(e) => setShowFutureTransactions(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                    <label
+                      htmlFor="showFutureTransactions"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Show future transactions ({futureCount})
+                    </label>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -228,6 +255,29 @@ export default function Home() {
           // Filter results: always show today, optionally show past/future based on checkboxes
           const today = new Date();
           today.setHours(0, 0, 0, 0);
+
+          // Categorize all results
+          let todayCount = 0;
+          let pastCount = 0;
+          let futureCount = 0;
+
+          results.forEach((r) => {
+            const eventDateParts = r.eventStartDate.split("/");
+            const eventDateObj = new Date(
+              parseInt(eventDateParts[2]),
+              parseInt(eventDateParts[0]) - 1,
+              parseInt(eventDateParts[1])
+            );
+            eventDateObj.setHours(0, 0, 0, 0);
+
+            if (eventDateObj.getTime() === today.getTime()) {
+              todayCount++;
+            } else if (eventDateObj < today) {
+              pastCount++;
+            } else if (eventDateObj > today) {
+              futureCount++;
+            }
+          });
 
           const filteredResults = results.filter((r) => {
             const eventDateParts = r.eventStartDate.split("/");
@@ -269,32 +319,49 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="overflow-auto">
-              <table className="w-full border-collapse">
-                <thead className="sticky top-0 bg-white">
-                  <tr className="border-b">
-                    <th className="text-left p-2">Payment ID</th>
-                    <th className="text-left p-2">Event Name</th>
-                    <th className="text-left p-2">Event Date</th>
-                    <th className="text-left p-2">Event Time</th>
-                    <th className="text-left p-2">Attendee Name</th>
-                    <th className="text-left p-2">Seat</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredResults.map((result, idx) => (
-                    <tr key={idx} className="border-b hover:bg-gray-50">
-                      <td className="p-2 font-mono">{result.paymentId}</td>
-                      <td className="p-2">{result.eventName}</td>
-                      <td className="p-2">{result.eventStartDate}</td>
-                      <td className="p-2">{result.eventStartTime}</td>
-                      <td className="p-2">{result.payerName || "-"}</td>
-                      <td className="p-2">{result.seatInfo || "-"}</td>
+            {filteredResults.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-600 mb-4">
+                  No transactions found for today.
+                </p>
+                {(pastCount > 0 || futureCount > 0) && (
+                  <p className="text-sm text-gray-500">
+                    {pastCount > 0 && futureCount > 0
+                      ? `Found ${pastCount} past transaction${pastCount !== 1 ? 's' : ''} and ${futureCount} future transaction${futureCount !== 1 ? 's' : ''}. Check the boxes above to view them.`
+                      : pastCount > 0
+                      ? `Found ${pastCount} past transaction${pastCount !== 1 ? 's' : ''}. Check "Show past transactions" to view.`
+                      : `Found ${futureCount} future transaction${futureCount !== 1 ? 's' : ''}. Check "Show future transactions" to view.`}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-auto">
+                <table className="w-full border-collapse">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b">
+                      <th className="text-left p-2">Payment ID</th>
+                      <th className="text-left p-2">Event Name</th>
+                      <th className="text-left p-2">Event Date</th>
+                      <th className="text-left p-2">Event Time</th>
+                      <th className="text-left p-2">Attendee Name</th>
+                      <th className="text-left p-2">Seat</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredResults.map((result, idx) => (
+                      <tr key={idx} className="border-b hover:bg-gray-50">
+                        <td className="p-2 font-mono">{result.paymentId}</td>
+                        <td className="p-2">{result.eventName}</td>
+                        <td className="p-2">{result.eventStartDate}</td>
+                        <td className="p-2">{result.eventStartTime}</td>
+                        <td className="p-2">{result.payerName || "-"}</td>
+                        <td className="p-2">{result.seatInfo || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
           );
         })()}
