@@ -11,7 +11,7 @@ import {
 export default function Header() {
   return (
     <header className="flex justify-between items-center p-4 bg-gray-100">
-      <h1 className="text-xl font-bold">Crunchy Playground</h1>
+      <h1 className="text-xl font-bold">Gotham Comedy Club</h1>
       <div>
         <SignedOut>
           <div className="flex gap-2">
