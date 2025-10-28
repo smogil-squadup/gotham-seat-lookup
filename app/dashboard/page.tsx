@@ -26,7 +26,7 @@ export default function Home() {
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      toast.error("Please enter a name or email to search");
+      toast.error("Please enter a name to search");
       return;
     }
 
@@ -149,7 +149,7 @@ export default function Home() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 p-3 border rounded-md"
-                  placeholder="Enter name or email address..."
+                  placeholder="Enter attendee name..."
                   disabled={isLoading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -175,7 +175,7 @@ export default function Home() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Search for payments associated with host user ID 9987142
+                Search by attendee name (first, last, or full name)
               </p>
             </div>
 
