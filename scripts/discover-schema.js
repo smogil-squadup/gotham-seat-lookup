@@ -49,18 +49,14 @@ async function discoverSchema() {
     }
 
     // Test the actual query we're using
-    console.log('\n\nTesting actual seat lookup query for "edwin":');
+    console.log('\n\nTesting actual seat lookup query for "edwina":');
     const testQuery = await pool.query(`
       SELECT
-        p.id as payment_id,
-        p.amount,
-        p.created_at,
-        p.event_id,
-        e.start_at,
-        e.name as event_name,
+        ag.id,
+        ag.seat_id,
+        ag.seat_obj,
         ea.first_name,
-        ea.last_name,
-        ag.seat_obj
+        ea.last_name
       FROM attendee_guests ag
       INNER JOIN payments p ON ag.payment_id = p.id
       INNER JOIN events e ON p.event_id = e.id
@@ -72,9 +68,9 @@ async function discoverSchema() {
         )
       ORDER BY p.created_at DESC
       LIMIT 5
-    `, [9987142, '%edwin%']);
+    `, [9987142, '%edwina%']);
 
-    console.log(`Found ${testQuery.rows.length} results for "edwin"`);
+    console.log(`Found ${testQuery.rows.length} results for "edwina"`);
     testQuery.rows.forEach((row, i) => {
       console.log(`\nResult ${i + 1}:`, JSON.stringify(row, null, 2));
     });

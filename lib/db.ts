@@ -197,6 +197,7 @@ export const searchPaymentsByNameOrEmail = async (params: {
 }): Promise<SeatLookupResult[]> => {
   // Aggregate all seats for each payment into a JSON array
   // This allows us to show all seats (e.g., Table 61-2, Table 61-3) for a single payment
+  // We aggregate both seat_obj (full JSONB with components) and seat_id (text fallback)
   const queryText = `
     SELECT
       p.id as payment_id,
@@ -207,7 +208,12 @@ export const searchPaymentsByNameOrEmail = async (params: {
       e.name as event_name,
       ea.first_name,
       ea.last_name,
-      json_agg(ag.seat_obj ORDER BY ag.id) FILTER (WHERE ag.seat_obj IS NOT NULL) as seat_objs
+      json_agg(
+        json_build_object(
+          'seat_obj', ag.seat_obj,
+          'seat_id', ag.seat_id
+        ) ORDER BY ag.id
+      ) FILTER (WHERE ag.id IS NOT NULL) as seats
     FROM event_attendees ea
     INNER JOIN payments p ON ea.id = p.event_attendee_id
     INNER JOIN events e ON p.event_id = e.id
@@ -237,12 +243,15 @@ export const searchPaymentsByNameOrEmail = async (params: {
       start_at: string;
       first_name: string | null;
       last_name: string | null;
-      seat_objs: Array<{
-        components?: Array<{
-          key: string;
-          label: string;
-          value: string;
-        }>;
+      seats: Array<{
+        seat_obj: {
+          components?: Array<{
+            key: string;
+            label: string;
+            value: string;
+          }>;
+        } | null;
+        seat_id: string | null;
       }> | null;
     }>(queryText, [params.hostUserId, searchPattern]);
 
@@ -265,18 +274,26 @@ export const searchPaymentsByNameOrEmail = async (params: {
         ? `${row.first_name} ${row.last_name}`
         : row.first_name || row.last_name || null;
 
-      // Extract and combine seat info from all seat_objs
+      // Extract and combine seat info from all seats
+      // Prefer seat_obj.components, fallback to seat_id if seat_obj is empty
       let seatInfo: string | null = null;
-      if (row.seat_objs && Array.isArray(row.seat_objs) && row.seat_objs.length > 0) {
-        const allSeats = row.seat_objs
-          .filter((seatObj) => seatObj.components && Array.isArray(seatObj.components))
-          .map((seatObj) => {
-            const components = seatObj.components!
-              .map((comp) => `${comp.label}: ${comp.value}`)
-              .join(', ');
-            return components;
+      if (row.seats && Array.isArray(row.seats) && row.seats.length > 0) {
+        const allSeats = row.seats
+          .map((seat) => {
+            // Check if seat_obj has components
+            if (seat.seat_obj?.components && Array.isArray(seat.seat_obj.components) && seat.seat_obj.components.length > 0) {
+              const components = seat.seat_obj.components
+                .map((comp) => `${comp.label}: ${comp.value}`)
+                .join(', ');
+              return components;
+            }
+            // Fallback to seat_id if seat_obj is empty or null
+            else if (seat.seat_id) {
+              return seat.seat_id;
+            }
+            return null;
           })
-          .filter((seat) => seat.length > 0);
+          .filter((seat) => seat !== null && seat.length > 0);
 
         if (allSeats.length > 0) {
           seatInfo = allSeats.join(' | ');
