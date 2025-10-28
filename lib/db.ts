@@ -195,11 +195,10 @@ export const searchPaymentsByNameOrEmail = async (params: {
   searchQuery: string;
   hostUserId: number;
 }): Promise<SeatLookupResult[]> => {
-  // Simplified approach: Start from event_attendees (has name columns and is indexed on event_id)
-  // Then join to payments, and optionally get seat data if available
-  // This avoids the slow attendee_guests table scan
+  // Aggregate all seats for each payment into a JSON array
+  // This allows us to show all seats (e.g., Table 61-2, Table 61-3) for a single payment
   const queryText = `
-    SELECT DISTINCT ON (p.id)
+    SELECT
       p.id as payment_id,
       p.amount,
       p.created_at,
@@ -208,7 +207,7 @@ export const searchPaymentsByNameOrEmail = async (params: {
       e.name as event_name,
       ea.first_name,
       ea.last_name,
-      ag.seat_obj
+      json_agg(ag.seat_obj ORDER BY ag.id) FILTER (WHERE ag.seat_obj IS NOT NULL) as seat_objs
     FROM event_attendees ea
     INNER JOIN payments p ON ea.id = p.event_attendee_id
     INNER JOIN events e ON p.event_id = e.id
@@ -218,7 +217,8 @@ export const searchPaymentsByNameOrEmail = async (params: {
         LOWER(ea.first_name) LIKE LOWER($2)
         OR LOWER(ea.last_name) LIKE LOWER($2)
       )
-    ORDER BY p.id, p.created_at DESC
+    GROUP BY p.id, p.amount, p.created_at, p.event_id, e.start_at, e.name, ea.first_name, ea.last_name
+    ORDER BY p.created_at DESC
     LIMIT 50
   `;
 
@@ -237,13 +237,13 @@ export const searchPaymentsByNameOrEmail = async (params: {
       start_at: string;
       first_name: string | null;
       last_name: string | null;
-      seat_obj: {
+      seat_objs: Array<{
         components?: Array<{
           key: string;
           label: string;
           value: string;
         }>;
-      } | null;
+      }> | null;
     }>(queryText, [params.hostUserId, searchPattern]);
 
     console.log('Query returned rows:', rows.length);
@@ -265,13 +265,22 @@ export const searchPaymentsByNameOrEmail = async (params: {
         ? `${row.first_name} ${row.last_name}`
         : row.first_name || row.last_name || null;
 
-      // Extract seat info from seat_obj.components
+      // Extract and combine seat info from all seat_objs
       let seatInfo: string | null = null;
-      if (row.seat_obj?.components && Array.isArray(row.seat_obj.components)) {
-        const components = row.seat_obj.components
-          .map((comp) => `${comp.label}: ${comp.value}`)
-          .join(', ');
-        seatInfo = components || null;
+      if (row.seat_objs && Array.isArray(row.seat_objs) && row.seat_objs.length > 0) {
+        const allSeats = row.seat_objs
+          .filter((seatObj) => seatObj.components && Array.isArray(seatObj.components))
+          .map((seatObj) => {
+            const components = seatObj.components!
+              .map((comp) => `${comp.label}: ${comp.value}`)
+              .join(', ');
+            return components;
+          })
+          .filter((seat) => seat.length > 0);
+
+        if (allSeats.length > 0) {
+          seatInfo = allSeats.join(' | ');
+        }
       }
 
       return {
