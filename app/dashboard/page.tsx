@@ -16,6 +16,7 @@ interface SeatLookupResult {
   amount: number;
   payerName?: string;
   payerEmail?: string;
+  seatInfo?: string;
   transactionId?: string;
 }
 
@@ -183,8 +184,8 @@ export default function Home() {
                     <th className="text-left p-2">Event Date</th>
                     <th className="text-left p-2">Event Time</th>
                     <th className="text-left p-2">Amount</th>
-                    <th className="text-left p-2">Payer Name</th>
-                    <th className="text-left p-2">Payer Email</th>
+                    <th className="text-left p-2">Attendee Name</th>
+                    <th className="text-left p-2">Seat</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -198,7 +199,7 @@ export default function Home() {
                         ${Number(result.amount).toFixed(2)}
                       </td>
                       <td className="p-2">{result.payerName || "-"}</td>
-                      <td className="p-2">{result.payerEmail || "-"}</td>
+                      <td className="p-2">{result.seatInfo || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
