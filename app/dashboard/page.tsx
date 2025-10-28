@@ -71,9 +71,8 @@ export default function Home() {
       "Event Date",
       "Event Time",
       "Payment ID",
-      "Amount",
       "Payer Name",
-      "Payer Email",
+      "Seat",
     ];
 
     const rows = results.map((r) => [
@@ -81,9 +80,8 @@ export default function Home() {
       r.eventStartDate,
       r.eventStartTime,
       r.paymentId,
-      `$${Number(r.amount).toFixed(2)}`,
       r.payerName || "",
-      r.payerEmail || "",
+      r.seatInfo || "",
     ]);
 
     const csvContent = [headers, ...rows]
@@ -183,7 +181,6 @@ export default function Home() {
                     <th className="text-left p-2">Event Name</th>
                     <th className="text-left p-2">Event Date</th>
                     <th className="text-left p-2">Event Time</th>
-                    <th className="text-left p-2">Amount</th>
                     <th className="text-left p-2">Attendee Name</th>
                     <th className="text-left p-2">Seat</th>
                   </tr>
@@ -195,9 +192,6 @@ export default function Home() {
                       <td className="p-2">{result.eventName}</td>
                       <td className="p-2">{result.eventStartDate}</td>
                       <td className="p-2">{result.eventStartTime}</td>
-                      <td className="p-2">
-                        ${Number(result.amount).toFixed(2)}
-                      </td>
                       <td className="p-2">{result.payerName || "-"}</td>
                       <td className="p-2">{result.seatInfo || "-"}</td>
                     </tr>
