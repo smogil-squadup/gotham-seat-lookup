@@ -6,7 +6,15 @@ import {
   Download,
   Loader2,
   Search,
+  Calendar as CalendarIcon,
 } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface SeatLookupResult {
   eventName: string;
@@ -24,6 +32,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<SeatLookupResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [eventDate, setEventDate] = useState<Date | undefined>(undefined);
+  const [showPastTransactions, setShowPastTransactions] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -66,6 +76,34 @@ export default function Home() {
   };
 
   const exportToCSV = () => {
+    // Apply same filters as display
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let filteredResults = results;
+
+    // Filter by selected event date
+    if (eventDate) {
+      const selectedDateStr = format(eventDate, "MM/dd/yyyy");
+      filteredResults = filteredResults.filter(
+        (r) => r.eventStartDate === selectedDateStr
+      );
+    }
+
+    // Filter past transactions
+    if (!showPastTransactions) {
+      filteredResults = filteredResults.filter((r) => {
+        const eventDateParts = r.eventStartDate.split("/");
+        const eventDateObj = new Date(
+          parseInt(eventDateParts[2]),
+          parseInt(eventDateParts[0]) - 1,
+          parseInt(eventDateParts[1])
+        );
+        eventDateObj.setHours(0, 0, 0, 0);
+        return eventDateObj >= today;
+      });
+    }
+
     const headers = [
       "Event Name",
       "Event Date",
@@ -75,7 +113,7 @@ export default function Home() {
       "Seat",
     ];
 
-    const rows = results.map((r) => [
+    const rows = filteredResults.map((r) => [
       r.eventName,
       r.eventStartDate,
       r.eventStartTime,
@@ -155,15 +193,99 @@ export default function Home() {
                 Search for payments associated with host user ID 9987142
               </p>
             </div>
+
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2">
+                  Filter by Event Date (Optional)
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={`w-full p-3 border rounded-md text-left flex items-center gap-2 ${
+                        !eventDate ? "text-gray-500" : ""
+                      }`}
+                      disabled={isLoading}
+                    >
+                      <CalendarIcon size={20} />
+                      {eventDate ? format(eventDate, "PPP") : "Select a date"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={eventDate}
+                      onSelect={setEventDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {eventDate && (
+                <button
+                  onClick={() => setEventDate(undefined)}
+                  className="px-4 py-3 border rounded-md hover:bg-gray-50 transition-colors"
+                  disabled={isLoading}
+                >
+                  Clear Date
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="showPastTransactions"
+                checked={showPastTransactions}
+                onChange={(e) => setShowPastTransactions(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300"
+              />
+              <label
+                htmlFor="showPastTransactions"
+                className="text-sm font-medium cursor-pointer"
+              >
+                Show past transactions
+              </label>
+            </div>
           </div>
         </div>
 
-        {results.length > 0 && (
-          <div className="bg-white border rounded-lg p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">
-                Results ({results.length})
-              </h2>
+        {results.length > 0 && (() => {
+          // Filter results based on date and past transactions settings
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          let filteredResults = results;
+
+          // Filter by selected event date
+          if (eventDate) {
+            const selectedDateStr = format(eventDate, "MM/dd/yyyy");
+            filteredResults = filteredResults.filter(
+              (r) => r.eventStartDate === selectedDateStr
+            );
+          }
+
+          // Filter past transactions
+          if (!showPastTransactions) {
+            filteredResults = filteredResults.filter((r) => {
+              const eventDateParts = r.eventStartDate.split("/");
+              const eventDateObj = new Date(
+                parseInt(eventDateParts[2]),
+                parseInt(eventDateParts[0]) - 1,
+                parseInt(eventDateParts[1])
+              );
+              eventDateObj.setHours(0, 0, 0, 0);
+              return eventDateObj >= today;
+            });
+          }
+
+          return (
+            <div className="bg-white border rounded-lg p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">
+                  Results ({filteredResults.length})
+                </h2>
               <button
                 onClick={exportToCSV}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
@@ -186,7 +308,7 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((result, idx) => (
+                  {filteredResults.map((result, idx) => (
                     <tr key={idx} className="border-b hover:bg-gray-50">
                       <td className="p-2 font-mono">{result.paymentId}</td>
                       <td className="p-2">{result.eventName}</td>
@@ -200,7 +322,8 @@ export default function Home() {
               </table>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     </main>
   );
