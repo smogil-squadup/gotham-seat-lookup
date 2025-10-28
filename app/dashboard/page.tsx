@@ -3,7 +3,6 @@
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { Download, Loader2, Search } from "lucide-react";
-import { format } from "date-fns";
 
 interface SeatLookupResult {
   eventName: string;
@@ -252,7 +251,6 @@ export default function Home() {
             today.setHours(0, 0, 0, 0);
 
             // Categorize all results
-            let todayCount = 0;
             let pastCount = 0;
             let futureCount = 0;
 
@@ -265,9 +263,7 @@ export default function Home() {
               );
               eventDateObj.setHours(0, 0, 0, 0);
 
-              if (eventDateObj.getTime() === today.getTime()) {
-                todayCount++;
-              } else if (eventDateObj < today) {
+              if (eventDateObj < today) {
                 pastCount++;
               } else if (eventDateObj > today) {
                 futureCount++;
@@ -337,92 +333,57 @@ export default function Home() {
                     )}
                   </div>
                 ) : (
-                  <>
-                    {/* Mobile Card View */}
-                    <div className="block lg:hidden space-y-4">
-                      {filteredResults.map((result, idx) => (
-                        <div
-                          key={idx}
-                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                          {/* Seat Info - Most Prominent */}
-                          <div className="mb-3 pb-3 border-b">
-                            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                              Seat
-                            </div>
-                            <div className="text-xl font-bold text-blue-600 whitespace-pre-line">
-                              {result.seatInfo || "-"}
-                            </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredResults.map((result, idx) => (
+                      <div
+                        key={idx}
+                        className="border rounded-lg p-4 hover:bg-gray-50 hover:shadow-md transition-all">
+                        {/* Seat Info - Most Prominent */}
+                        <div className="mb-3 pb-3 border-b">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                            Seat
                           </div>
-
-                          {/* Other Details */}
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="font-medium text-gray-600">
-                                Attendee:
-                              </span>
-                              <span className="font-semibold text-right">
-                                {result.payerName || "-"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="font-medium text-gray-600">
-                                Event:
-                              </span>
-                              <span className="text-right">{result.eventName}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="font-medium text-gray-600">
-                                Date:
-                              </span>
-                              <span className="text-right">
-                                {result.eventStartDate} {result.eventStartTime}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="font-medium text-gray-600">
-                                Payment ID:
-                              </span>
-                              <span className="font-mono text-xs text-right">
-                                {result.paymentId}
-                              </span>
-                            </div>
+                          <div className="text-xl font-bold text-blue-600 whitespace-pre-line">
+                            {result.seatInfo || "-"}
                           </div>
                         </div>
-                      ))}
-                    </div>
 
-                    {/* Desktop Table View */}
-                    <div className="hidden lg:block overflow-auto">
-                      <table className="w-full border-collapse">
-                        <thead className="sticky top-0 bg-white">
-                          <tr className="border-b">
-                            <th className="text-left p-2">Payment ID</th>
-                            <th className="text-left p-2">Event Name</th>
-                            <th className="text-left p-2">Event Date</th>
-                            <th className="text-left p-2">Event Time</th>
-                            <th className="text-left p-2">Attendee Name</th>
-                            <th className="text-left p-2">Seat</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredResults.map((result, idx) => (
-                            <tr key={idx} className="border-b hover:bg-gray-50">
-                              <td className="p-2 font-mono text-sm">
-                                {result.paymentId}
-                              </td>
-                              <td className="p-2">{result.eventName}</td>
-                              <td className="p-2">{result.eventStartDate}</td>
-                              <td className="p-2">{result.eventStartTime}</td>
-                              <td className="p-2">{result.payerName || "-"}</td>
-                              <td className="p-2 whitespace-pre-line font-semibold">
-                                {result.seatInfo || "-"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
+                        {/* Other Details */}
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium text-gray-600">
+                              Attendee:
+                            </span>
+                            <span className="font-semibold text-right">
+                              {result.payerName || "-"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium text-gray-600">
+                              Event:
+                            </span>
+                            <span className="text-right">{result.eventName}</span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium text-gray-600">
+                              Date:
+                            </span>
+                            <span className="text-right">
+                              {result.eventStartDate} {result.eventStartTime}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="font-medium text-gray-600">
+                              Payment ID:
+                            </span>
+                            <span className="font-mono text-xs text-right">
+                              {result.paymentId}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             );
