@@ -143,7 +143,7 @@ export default function Home() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Name</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={searchQuery}
@@ -160,7 +160,7 @@ export default function Home() {
                 <button
                   onClick={handleSearch}
                   disabled={isLoading || !searchQuery.trim()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
+                  className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
                   {isLoading ? (
                     <>
                       <Loader2 className="animate-spin" size={20} />
@@ -205,7 +205,7 @@ export default function Home() {
                 });
 
                 return (
-                  <div className="flex gap-6">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -300,14 +300,14 @@ export default function Home() {
             });
 
             return (
-              <div className="bg-white border rounded-lg p-6 shadow-sm">
-                <div className="flex justify-between items-center mb-4">
+              <div className="bg-white border rounded-lg p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                   <h2 className="text-xl font-semibold">
                     Results ({filteredResults.length})
                   </h2>
                   <button
                     onClick={exportToCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
                     <Download size={20} />
                     Export CSV
                   </button>
@@ -337,36 +337,92 @@ export default function Home() {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-auto">
-                    <table className="w-full border-collapse">
-                      <thead className="sticky top-0 bg-white">
-                        <tr className="border-b">
-                          <th className="text-left p-2">Payment ID</th>
-                          <th className="text-left p-2">Event Name</th>
-                          <th className="text-left p-2">Event Date</th>
-                          <th className="text-left p-2">Event Time</th>
-                          <th className="text-left p-2">Attendee Name</th>
-                          <th className="text-left p-2">Seat</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredResults.map((result, idx) => (
-                          <tr key={idx} className="border-b hover:bg-gray-50">
-                            <td className="p-2 font-mono">
-                              {result.paymentId}
-                            </td>
-                            <td className="p-2">{result.eventName}</td>
-                            <td className="p-2">{result.eventStartDate}</td>
-                            <td className="p-2">{result.eventStartTime}</td>
-                            <td className="p-2">{result.payerName || "-"}</td>
-                            <td className="p-2 whitespace-pre-line">
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="block lg:hidden space-y-4">
+                      {filteredResults.map((result, idx) => (
+                        <div
+                          key={idx}
+                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                          {/* Seat Info - Most Prominent */}
+                          <div className="mb-3 pb-3 border-b">
+                            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                              Seat
+                            </div>
+                            <div className="text-xl font-bold text-blue-600 whitespace-pre-line">
                               {result.seatInfo || "-"}
-                            </td>
+                            </div>
+                          </div>
+
+                          {/* Other Details */}
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="font-medium text-gray-600">
+                                Attendee:
+                              </span>
+                              <span className="font-semibold text-right">
+                                {result.payerName || "-"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="font-medium text-gray-600">
+                                Event:
+                              </span>
+                              <span className="text-right">{result.eventName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="font-medium text-gray-600">
+                                Date:
+                              </span>
+                              <span className="text-right">
+                                {result.eventStartDate} {result.eventStartTime}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="font-medium text-gray-600">
+                                Payment ID:
+                              </span>
+                              <span className="font-mono text-xs text-right">
+                                {result.paymentId}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden lg:block overflow-auto">
+                      <table className="w-full border-collapse">
+                        <thead className="sticky top-0 bg-white">
+                          <tr className="border-b">
+                            <th className="text-left p-2">Payment ID</th>
+                            <th className="text-left p-2">Event Name</th>
+                            <th className="text-left p-2">Event Date</th>
+                            <th className="text-left p-2">Event Time</th>
+                            <th className="text-left p-2">Attendee Name</th>
+                            <th className="text-left p-2">Seat</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {filteredResults.map((result, idx) => (
+                            <tr key={idx} className="border-b hover:bg-gray-50">
+                              <td className="p-2 font-mono text-sm">
+                                {result.paymentId}
+                              </td>
+                              <td className="p-2">{result.eventName}</td>
+                              <td className="p-2">{result.eventStartDate}</td>
+                              <td className="p-2">{result.eventStartTime}</td>
+                              <td className="p-2">{result.payerName || "-"}</td>
+                              <td className="p-2 whitespace-pre-line font-semibold">
+                                {result.seatInfo || "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             );
