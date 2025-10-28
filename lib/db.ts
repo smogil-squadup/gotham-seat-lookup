@@ -226,7 +226,6 @@ export const searchPaymentsByNameOrEmail = async (params: {
       )
     GROUP BY p.id, p.amount, p.created_at, p.event_id, e.start_at, e.name, ea.first_name, ea.last_name
     ORDER BY p.created_at DESC
-    LIMIT 50
   `;
 
   const searchPattern = `%${params.searchQuery}%`;
