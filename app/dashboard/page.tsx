@@ -355,7 +355,7 @@ export default function Home() {
                         <td className="p-2">{result.eventStartDate}</td>
                         <td className="p-2">{result.eventStartTime}</td>
                         <td className="p-2">{result.payerName || "-"}</td>
-                        <td className="p-2">{result.seatInfo || "-"}</td>
+                        <td className="p-2 whitespace-pre-line">{result.seatInfo || "-"}</td>
                       </tr>
                     ))}
                   </tbody>

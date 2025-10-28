@@ -282,6 +282,7 @@ export const searchPaymentsByNameOrEmail = async (params: {
 
       // Extract and combine seat info from all seats
       // Prefer seat_obj.components, fallback to seat_id if seat_obj is empty
+      // Each seat on a new line using <br> tag
       let seatInfo: string | null = null;
       if (row.seats && Array.isArray(row.seats) && row.seats.length > 0) {
         const allSeats = row.seats
@@ -302,7 +303,7 @@ export const searchPaymentsByNameOrEmail = async (params: {
           .filter((seat) => seat !== null && seat.length > 0);
 
         if (allSeats.length > 0) {
-          seatInfo = allSeats.join(' | ');
+          seatInfo = allSeats.join('\n');
         }
       }
 
