@@ -195,32 +195,36 @@ export const searchPaymentsByNameOrEmail = async (params: {
   searchQuery: string;
   hostUserId: number;
 }): Promise<SeatLookupResult[]> => {
-  // Get payments with attendee filter so we only query what we need
+  // Simplified approach: Start from event_attendees (has name columns and is indexed on event_id)
+  // Then join to payments, and optionally get seat data if available
+  // This avoids the slow attendee_guests table scan
   const queryText = `
-    SELECT
+    SELECT DISTINCT ON (p.id)
       p.id as payment_id,
       p.amount,
       p.created_at,
       p.event_id,
-      p.event_attendee_id,
+      e.start_at,
+      e.name as event_name,
       ea.first_name,
       ea.last_name,
-      e.start_at
-    FROM payments p
+      ag.seat_obj
+    FROM event_attendees ea
+    INNER JOIN payments p ON ea.id = p.event_attendee_id
     INNER JOIN events e ON p.event_id = e.id
-    LEFT JOIN event_attendees ea ON p.event_attendee_id = ea.id
+    LEFT JOIN attendee_guests ag ON ag.payment_id = p.id AND ag.event_attendee_id = ea.id
     WHERE e.user_id = $1
       AND (
         LOWER(ea.first_name) LIKE LOWER($2)
         OR LOWER(ea.last_name) LIKE LOWER($2)
       )
-    ORDER BY p.created_at DESC
+    ORDER BY p.id, p.created_at DESC
     LIMIT 50
   `;
 
   const searchPattern = `%${params.searchQuery}%`;
 
-  console.log('Executing seat lookup query:', queryText);
+  console.log('Executing seat lookup query (via event_attendees + LEFT JOIN attendee_guests):', queryText);
   console.log('Query parameters:', [params.hostUserId, searchPattern]);
 
   try {
@@ -229,18 +233,21 @@ export const searchPaymentsByNameOrEmail = async (params: {
       amount: number;
       created_at: string;
       event_id: number;
-      event_attendee_id: number | null;
+      event_name: string | null;
+      start_at: string;
       first_name: string | null;
       last_name: string | null;
-      start_at: string;
+      seat_obj: {
+        components?: Array<{
+          key: string;
+          label: string;
+          value: string;
+        }>;
+      } | null;
     }>(queryText, [params.hostUserId, searchPattern]);
 
     console.log('Query returned rows:', rows.length);
 
-    // SKIP seat query for now - it times out due to lack of database indexes
-    // The database needs indexes on: payment_items.payment_id and attendee_guests.payment_item_id
-    const seatMap = new Map<number, string>();
-    console.log('SKIPPING seat info query - database lacks proper indexes causing 30s+ timeouts');
     return rows.map((row) => {
       const startDate = new Date(row.start_at);
       const eventDate = startDate.toLocaleDateString('en-US', {
@@ -258,16 +265,23 @@ export const searchPaymentsByNameOrEmail = async (params: {
         ? `${row.first_name} ${row.last_name}`
         : row.first_name || row.last_name || null;
 
-      const seatInfo = seatMap.get(row.payment_id) || null;
+      // Extract seat info from seat_obj.components
+      let seatInfo: string | null = null;
+      if (row.seat_obj?.components && Array.isArray(row.seat_obj.components)) {
+        const components = row.seat_obj.components
+          .map((comp) => `${comp.label}: ${comp.value}`)
+          .join(', ');
+        seatInfo = components || null;
+      }
 
       return {
-        eventName: `Event #${row.event_id}`,
+        eventName: row.event_name || `Event #${row.event_id}`,
         eventStartDate: eventDate,
         eventStartTime: eventTime,
         paymentId: row.payment_id,
         amount: Number(row.amount),
         payerName: attendeeName,
-        payerEmail: null,
+        payerEmail: null, // event_attendees doesn't have email column
         seatInfo: seatInfo,
         transactionId: null,
       };
