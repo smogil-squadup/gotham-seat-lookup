@@ -204,7 +204,7 @@ export const searchPaymentsByNameOrEmail = async (params: {
       p.amount,
       p.created_at,
       p.event_id,
-      (e.start_at AT TIME ZONE 'America/New_York') as start_at,
+      e.start_at,
       e.name as event_name,
       ea.first_name,
       ea.last_name,
@@ -258,22 +258,21 @@ export const searchPaymentsByNameOrEmail = async (params: {
     console.log('Query returned rows:', rows.length);
 
     return rows.map((row) => {
-      // Database stores incorrect UTC times - need to subtract 4 hours to get correct EST time
+      // Manual timezone offset (set OFFSET=5 for EST, OFFSET=4 for EDT)
       const startDate = new Date(row.start_at);
-      startDate.setHours(startDate.getHours() - 4);
+      const offset = parseInt(process.env.OFFSET || '5');
+      startDate.setHours(startDate.getHours() - offset);
 
       const eventDate = startDate.toLocaleDateString('en-US', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
-        timeZone: 'America/New_York'
       });
 
       const eventTime = startDate.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
-        timeZone: 'America/New_York'
       });
 
       const attendeeName = row.first_name && row.last_name
